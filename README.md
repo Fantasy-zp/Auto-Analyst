@@ -7,6 +7,7 @@
 - **多智能体协作**：使用 CrewAI 框架，研究员 Agent 负责数据采集，撰稿人 Agent 负责报告生成
 - **两阶段检索**：向量搜索（ChromaDB）+ 重排序（FlashRank），提升检索精度
 - **实时网络搜索**：集成 Tavily AI 搜索引擎，获取最新行业资讯
+- **个人知识库**：支持上传 PDF/TXT/Markdown 文件到向量知识库，研报生成时自动检索
 - **流式输出**：支持实时流式生成报告，即时查看生成进度
 - **双模式支持**：标准模式（多智能体协作）和快速模式（流式输出）
 - **DeepSeek LLM**：使用 DeepSeek-V3 作为底层语言模型
@@ -65,7 +66,7 @@ Auto-Analyst/
 ├── rag_processor.py    # RAG 处理（向量检索 + 重排序）
 ├── config.py           # 统一配置管理
 ├── exceptions.py       # 自定义异常
-├── requirements.txt    # Python 依赖
+├── requirements.txt    # Python 依赖（含 PyPDF2）
 ├── pytest.ini          # 测试配置
 ├── tests/              # 单元测试
 │   ├── conftest.py     # 测试 fixtures
@@ -135,12 +136,20 @@ pytest tests/test_core_utils.py -v
 
 ## 工作流程
 
+### 知识库文件上传
+
+1. 在侧边栏"知识库管理"区域上传 PDF/TXT/Markdown 文件
+2. 系统自动解析文件内容，按段落分块存入 ChromaDB 向量库
+3. 已上传过的文件会自动跳过，避免重复导入
+4. 后续生成研报时，检索会同时覆盖上传文件和网络搜索结果
+5. 清空向量数据库会同步重置上传记录，允许重新导入
+
 ### 标准模式流程
 
 1. 用户输入研究主题
 2. **研究员 Agent** 调用 `AdvancedRAGSearchTool`：
    - 使用 Tavily 搜索网络资讯
-   - 将结果存入 ChromaDB 向量库
+   - 将结果存入 ChromaDB 向量库（与上传文件共享同一知识库）
    - 通过 FlashRank 重排序返回精选内容
 3. **撰稿人 Agent** 基于研究数据生成结构化研报
 4. 前端展示报告，支持下载 Markdown 格式
@@ -175,6 +184,7 @@ pytest tests/test_core_utils.py -v
 - **搜索引擎**：Tavily AI
 - **向量数据库**：ChromaDB
 - **重排序模型**：FlashRank (ms-marco-MiniLM-L-12-v2)
+- **PDF 解析**：PyPDF2
 - **测试框架**：pytest + pytest-cov
 
 ## 测试覆盖

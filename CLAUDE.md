@@ -31,6 +31,16 @@ Create a `.env` file with:
 - **rag_processor.py** - `AdvancedRAG` class implementing two-stage retrieval:
   1. Vector search via ChromaDB (retrieves 10 candidates)
   2. Reranking via FlashRank ms-marco-MiniLM-L-12-v2 (returns top-k)
+  - Also provides `add_raw_texts()` for ingesting user-uploaded files
+
+### File Upload Flow
+
+1. User uploads PDF/TXT/Markdown files via sidebar "知识库管理"
+2. Files are parsed (PyPDF2 for PDF, UTF-8 decode for text) and split into paragraphs
+3. Already-uploaded files are tracked in `session_state.uploaded_file_names` and skipped on repeat clicks
+4. Paragraphs are stored in ChromaDB via `AdvancedRAG.add_raw_texts()`
+5. Uploaded content participates in subsequent retrieval alongside web search results
+6. Clearing the vector DB also resets the uploaded file tracking
 
 ### Data Flow
 

@@ -140,6 +140,15 @@ class AdvancedRAG:
                 logger.warning("所有文档内容为空，跳过添加")
                 return
 
+            # 按 ID 去重：同一批次中内容相同的文档只保留第一条
+            seen = set()
+            deduped = []
+            for item in valid_data:
+                if item[0] not in seen:
+                    seen.add(item[0])
+                    deduped.append(item)
+            valid_data = deduped
+
             # zip(*valid_data) 是 zip 的逆操作：把三元组列表拆回三个独立列表
             valid_ids, valid_metadatas, valid_contents = zip(*valid_data)
 
@@ -241,6 +250,30 @@ class AdvancedRAG:
             error_msg = f"检索和重排序失败: {e}"
             logger.error(error_msg)
             raise RerankError(error_msg)
+
+    def add_raw_texts(self, texts: List[str], source: str = "local") -> int:
+        """
+        将纯文本列表存入向量数据库
+
+        把分块后的文本转换为 add_documents 所需的格式后存入。
+
+        Args:
+            texts: 文本块列表（每个元素是一个段落/片段）
+            source: 来源标识（如文件名）
+
+        Returns:
+            实际存入的文档数量
+
+        Raises:
+            VectorStoreError: 存储失败时抛出
+        """
+        documents = [{"content": t, "url": source} for t in texts if t.strip()]
+        if not documents:
+            logger.warning("没有有效文本需要添加")
+            return 0
+        self.add_documents(documents)
+        logger.info(f"从 {source} 添加了 {len(documents)} 个文本块")
+        return len(documents)
 
     def clear_db(self) -> None:
         """

@@ -103,6 +103,8 @@ if "report_topic" not in st.session_state:
     st.session_state.report_topic = None       # 当前研究主题
 if "rag_context" not in st.session_state:
     st.session_state.rag_context = None        # RAG 检索的参考资料
+if "uploaded_file_names" not in st.session_state:
+    st.session_state.uploaded_file_names = set()  # 已上传到知识库的文件名集合
 
 
 # ============================================================
@@ -243,12 +245,69 @@ with st.sidebar:
 
     st.divider()
 
+    # ---------- 知识库文件上传 ----------
+    st.subheader("知识库管理")
+    uploaded_files = st.file_uploader(
+        "上传文件到知识库",
+        type=["pdf", "txt", "md"],
+        accept_multiple_files=True,
+        help="支持 PDF、TXT、Markdown 文件，内容将按段落分块存入向量知识库"
+    )
+
+    if uploaded_files:
+        # 筛选出尚未上传过的新文件
+        new_files = [uf for uf in uploaded_files if uf.name not in st.session_state.uploaded_file_names]
+
+        if new_files and st.button("上传到知识库"):
+            rag = get_rag()
+            total_chunks = 0
+            for uf in new_files:
+                try:
+                    uf.seek(0)
+                    if uf.name.endswith(".pdf"):
+                        from PyPDF2 import PdfReader
+                        reader = PdfReader(uf)
+                        text = "\n\n".join(
+                            page.extract_text() or "" for page in reader.pages
+                        )
+                    else:
+                        try:
+                            text = uf.read().decode("utf-8")
+                        except UnicodeDecodeError:
+                            st.error(f"{uf.name}：文件编码不是 UTF-8，无法解析")
+                            continue
+
+                    # 按段落分块，过滤过短的段落
+                    chunks = [p.strip() for p in text.split("\n\n") if len(p.strip()) >= 10]
+
+                    if chunks:
+                        count = rag.add_raw_texts(chunks, source=f"upload://{uf.name}")
+                        total_chunks += count
+                        st.session_state.uploaded_file_names.add(uf.name)
+                        st.success(f"{uf.name}：成功导入 {count} 个文本块")
+                    else:
+                        st.warning(f"{uf.name}：未提取到有效内容")
+                except AutoAnalystError as e:
+                    st.error(f"{uf.name} 存储失败: {e}")
+                    logger.error(f"文件上传存储失败 {uf.name}: {e}")
+                except Exception as e:
+                    st.error(f"{uf.name} 处理失败: {e}")
+                    logger.error(f"文件上传处理失败 {uf.name}: {e}")
+
+            if total_chunks > 0:
+                st.toast(f"共导入 {total_chunks} 个文本块到知识库")
+        elif not new_files:
+            st.info("当前文件已全部上传过，如需重新导入请先清空向量数据库")
+
+    st.divider()
+
     # ---------- 功能按钮 ----------
     # 清空向量数据库：删除 ChromaDB 中存储的所有搜索结果
     if st.button("清空向量数据库"):
         try:
             rag = get_rag()
             rag.clear_db()
+            st.session_state.uploaded_file_names.clear()
             st.toast("向量数据库已清空")  # toast：右下角弹出的短暂提示
             logger.info("用户清空了向量数据库")
         except AutoAnalystError as e:

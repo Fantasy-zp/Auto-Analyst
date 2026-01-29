@@ -595,6 +595,7 @@ pytest --cov          # 显示代码覆盖率
 | LiteLLM | 统一模型调用接口 | agent_manager.py |
 | ChromaDB | 向量数据库 | rag_processor.py |
 | FlashRank | 重排序模型 | rag_processor.py |
+| PyPDF2 | PDF 文件解析 | app.py |
 | Streamlit | 前端网页框架 | app.py |
 | python-dotenv | 环境变量管理 | config.py |
 | pytest | 单元测试框架 | tests/ |
